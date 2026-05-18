@@ -3,6 +3,14 @@ local MBLib = addon.MBLib
 
 local OptionsScreen = {}
 
+local function IsAddonInstalled(name)
+  if C_AddOns and C_AddOns.GetAddOnInfo then
+    local resolved = C_AddOns.GetAddOnInfo(name)
+    return resolved ~= nil
+  end
+  return false
+end
+
 local function GetDefaultValueLabel(def)
   if not def then return "" end
   if def.Type == "dropdown" and def.Options and #def.Options > 0 then
@@ -39,7 +47,9 @@ local function CreateCommandList(parent, anchor, startOffsetX)
   local lastCmd = usageFS
   if MBLib.Commands and MBLib.Commands.list then
     local keys = {}
-    for k in pairs(MBLib.Commands.list) do table.insert(keys, k) end
+    for k, info in pairs(MBLib.Commands.list) do
+      if not info.hidden then table.insert(keys, k) end
+    end
     table.sort(keys)
 
     for i, cmd in ipairs(keys) do
@@ -54,6 +64,98 @@ local function CreateCommandList(parent, anchor, startOffsetX)
       lastCmd = cmdText
     end
   end
+  return lastCmd
+end
+
+local function CreateSeparatorBelow(parent, anchor, offsetX, offsetY)
+  local line = parent:CreateTexture(nil, "ARTWORK")
+  line:SetHeight(1)
+  line:SetColorTexture(1, 1, 1, 0.2)
+  line:SetPoint("LEFT", parent, "LEFT", offsetX, 0)
+  line:SetPoint("RIGHT", parent, "RIGHT", -offsetX, 0)
+  line:SetPoint("TOP", anchor, "BOTTOM", 0, offsetY)
+  return line
+end
+
+local function CreateAddonRow(parent, lastAnchor, isFirst, info)
+  local installed = IsAddonInstalled(info.name)
+
+  local row = CreateFrame("Frame", nil, parent)
+  row:SetHeight(installed and 24 or 18)
+  if isFirst then
+    row:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 10, -10)
+  else
+    row:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -6)
+  end
+  row:SetPoint("RIGHT", parent, "RIGHT", -20, 0)
+
+  -- Status icon (checkmark if installed, cross otherwise) with hover tooltip.
+  local statusBtn = CreateFrame("Button", nil, row)
+  statusBtn:SetSize(16, 16)
+  statusBtn:SetPoint("LEFT", 0, 0)
+  local statusFS = statusBtn:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+  statusFS:SetAllPoints()
+  statusFS:SetText(installed and MBLib.ICON_CHECKMARK or MBLib.ICON_CROSS)
+  local tooltipText = installed
+    and "You already have this addon"
+    or "You don't have this addon yet"
+  statusBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(tooltipText, 1, 1, 1)
+    GameTooltip:Show()
+  end)
+  statusBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+  -- Addon name — Blizzard-style Button when installed, plain text otherwise.
+  local nameAnchor
+  if installed then
+    local nameBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+    nameBtn:SetPoint("LEFT", statusBtn, "RIGHT", 6, 0)
+    nameBtn:SetText(info.name)
+    nameBtn:SetHeight(22)
+    nameBtn:SetWidth(nameBtn:GetTextWidth() + 20)
+    nameBtn:SetScript("OnClick", function()
+      local handler = SlashCmdList[info.name:upper()]
+      if handler then handler("settings") end
+    end)
+    nameAnchor = nameBtn
+  else
+    local nameFS = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    nameFS:SetPoint("LEFT", statusBtn, "RIGHT", 6, 0)
+    nameFS:SetTextColor(1, 0.82, 0)
+    nameFS:SetText(info.name)
+    nameAnchor = nameFS
+  end
+
+  -- Description fills the rest of the row.
+  local desc = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+  desc:SetPoint("LEFT", nameAnchor, "RIGHT", 6, 0)
+  desc:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+  desc:SetJustifyH("LEFT")
+  desc:SetJustifyV("MIDDLE")
+  desc:SetWordWrap(true)
+  desc:SetText("— " .. info.description)
+  local h = desc:GetStringHeight()
+  if h and h > row:GetHeight() then row:SetHeight(h + 4) end
+
+  return row
+end
+
+local function CreateOtherAddonsList(parent, anchor)
+  local title = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+  title:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 20, -20)
+  title:SetText("Other Addons by MorphieBlossom:")
+
+  local lastAnchor = title
+  local isFirst = true
+  ---@diagnostic disable-next-line: undefined-global, undefined-field
+  for _, info in ipairs(MBLib.OTHER_ADDONS or {}) do
+    if info.name ~= addonName then
+      lastAnchor = CreateAddonRow(parent, lastAnchor, isFirst, info)
+      isFirst = false
+    end
+  end
+  return lastAnchor
 end
 
 local function CreateMainFrame()
@@ -63,20 +165,26 @@ local function CreateMainFrame()
   local iconPath = MBLib:GetIcon()
   if iconPath then
     local icon = mainFrame:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(64, 64)
+    icon:SetSize(96, 96)
     icon:SetPoint("TOPLEFT", 15, -15)
     icon:SetTexture(iconPath)
   end
 
   local title = mainFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalHuge")
-  title:SetPoint("LEFT", mainFrame, "TOPLEFT", iconPath and 94 or 20, -32)
+  title:SetPoint("LEFT", mainFrame, "TOPLEFT", iconPath and 126 or 20, -32)
   title:SetText(C_AddOns.GetAddOnMetadata(addonName, "Title"))
 
+  -- Anchor description with TOPLEFT + RIGHT so it wraps to fit the panel
+  -- width instead of overflowing on long Notes strings.
   local description = mainFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
   description:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
+  description:SetPoint("RIGHT", mainFrame, "RIGHT", -20, 0)
+  description:SetJustifyH("LEFT")
+  description:SetJustifyV("TOP")
+  description:SetWordWrap(true)
   description:SetText(C_AddOns.GetAddOnMetadata(addonName, "Notes"))
 
-  local line1 = MBLib.Utils:CreateSeparator(mainFrame, mainFrame, 15, -100)
+  local line1 = MBLib.Utils:CreateSeparator(mainFrame, mainFrame, 15, -125)
 
   local creditsData = {
     "|cffffd200Version:|r " .. (C_AddOns.GetAddOnMetadata(addonName, "Version") or ""),
@@ -126,14 +234,20 @@ local function CreateMainFrame()
   local cmdTitle = mainFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
   cmdTitle:SetPoint("TOPLEFT", line2, "BOTTOMLEFT", 20, -20)
   cmdTitle:SetText("Available Chat Commands:")
-  CreateCommandList(mainFrame, cmdTitle, 10)
+  local lastCmd = CreateCommandList(mainFrame, cmdTitle, 10)
+
+  local line3 = CreateSeparatorBelow(mainFrame, lastCmd or cmdTitle, 15, -20)
+  CreateOtherAddonsList(mainFrame, line3)
 
   return mainFrame
 end
 
 local function CreateSettingsCategory(parent)
-  local category, layout = Settings.RegisterVerticalLayoutSubcategory(parent, "Display Settings")
-
+  -- Collect visible settings up front; if nothing's visible, skip the
+  -- subcategory entirely so consumers without configurable settings don't
+  -- end up with an empty "Display Settings" page.
+  local visibleByGroup = {}
+  local visibleGroupOrder = {}
   for _, group in ipairs(MBLib.Settings.groupOrder) do
     local defs = MBLib.Settings.byGroup[group]
     if defs and #defs > 0 then
@@ -141,47 +255,55 @@ local function CreateSettingsCategory(parent)
       for _, def in ipairs(defs) do
         if not def.Hide then table.insert(visible, def) end
       end
-
       if #visible > 0 then
-        layout:AddInitializer(Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name = group }))
+        visibleByGroup[group] = visible
+        table.insert(visibleGroupOrder, group)
+      end
+    end
+  end
 
-        for _, def in ipairs(visible) do
-          local variable = addonName .. "_" .. def.Key
-          local settingDescription = BuildSettingDescription(def)
-          local setting = Settings.RegisterProxySetting(
-            category,
-            variable,
-            type(def.Default),
-            def.Name,
-            def.Default,
-            function() return MBLib.Settings:Get(def.Key) end,
-            function(value) MBLib.Settings:Set(def.Key, value) end
-          )
+  if #visibleGroupOrder == 0 then return end
 
-          if def.Type == "checkbox" then
-            Settings.CreateCheckbox(category, setting, settingDescription)
-          elseif def.Type == "dropdown" then
-            local function GetOptions()
-              local container = Settings.CreateControlTextContainer()
-              for _, opt in ipairs(def.Options or {}) do
-                if type(opt) == "table" and opt.name and opt.value then
-                  container:Add(opt.value, opt.name)
-                else
-                  container:Add(opt, tostring(opt))
-                end
-              end
-              return container:GetData()
+  local category, layout = Settings.RegisterVerticalLayoutSubcategory(parent, "Display Settings")
+
+  for _, group in ipairs(visibleGroupOrder) do
+    layout:AddInitializer(Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name = group }))
+
+    for _, def in ipairs(visibleByGroup[group]) do
+      local variable = addonName .. "_" .. def.Key
+      local settingDescription = BuildSettingDescription(def)
+      local setting = Settings.RegisterProxySetting(
+        category,
+        variable,
+        type(def.Default),
+        def.Name,
+        def.Default,
+        function() return MBLib.Settings:Get(def.Key) end,
+        function(value) MBLib.Settings:Set(def.Key, value) end
+      )
+
+      if def.Type == "checkbox" then
+        Settings.CreateCheckbox(category, setting, settingDescription)
+      elseif def.Type == "dropdown" then
+        local function GetOptions()
+          local container = Settings.CreateControlTextContainer()
+          for _, opt in ipairs(def.Options or {}) do
+            if type(opt) == "table" and opt.name and opt.value then
+              container:Add(opt.value, opt.name)
+            else
+              container:Add(opt, tostring(opt))
             end
-            Settings.CreateDropdown(category, setting, GetOptions, settingDescription)
-          elseif def.Type == "slider" then
-            local minValue = def.Min or 0
-            local maxValue = def.Max or 100
-            local step = def.Step or 1
-            local options = Settings.CreateSliderOptions(minValue, maxValue, step)
-            options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-            Settings.CreateSlider(category, setting, options, settingDescription)
           end
+          return container:GetData()
         end
+        Settings.CreateDropdown(category, setting, GetOptions, settingDescription)
+      elseif def.Type == "slider" then
+        local minValue = def.Min or 0
+        local maxValue = def.Max or 100
+        local step = def.Step or 1
+        local options = Settings.CreateSliderOptions(minValue, maxValue, step)
+        options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+        Settings.CreateSlider(category, setting, options, settingDescription)
       end
     end
   end
@@ -240,6 +362,7 @@ function OptionsScreen:Build()
 
   Settings.RegisterAddOnCategory(mainCategory)
 
+  MBLib._optionsCategory = mainCategory
   MBLib._optionsScreenID = mainCategory:GetID()
   return mainCategory
 end

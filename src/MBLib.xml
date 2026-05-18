@@ -6,6 +6,7 @@
          (LibStub guards against double-load if multiple addons embed it.) -->
     <Include file="Libraries\Load_Libraries.xml"/>
     <Script file="Init.lua"/>
+    <Script file="Modules\Constants.lua"/>
     <Script file="Modules\Utils.lua"/>
     <Script file="Modules\Fonts.lua"/>
     <Script file="Modules\Settings.lua"/>
@@ -13,4 +14,5 @@
     <Script file="Modules\Changelog.lua"/>
     <Script file="Modules\Notifications.lua"/>
     <Script file="Modules\OptionsScreen.lua"/>
+    <!-- <Script file="Modules\CustomOptionsScreen.lua"/> -->
 </Ui>

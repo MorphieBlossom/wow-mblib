@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  # Optional. Path to a consumer addon's source root (e.g. ../wow-hovername/src). When provided,
+  # Optional. Path to a consumer addon's source root (e.g. ../../public/wow-hovername/src). When provided,
   # the built library is also copied into <SyncTo>/Libraries/MBLib for local dev iteration.
   [string]$SyncTo
 )
