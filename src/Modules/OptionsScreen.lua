@@ -358,12 +358,33 @@ function OptionsScreen:Build()
   local mainFrame = CreateMainFrame()
   local mainCategory = Settings.RegisterCanvasLayoutCategory(mainFrame, addonName)
   CreateSettingsCategory(mainCategory)
-  CreateReleaseNotesCategory(mainCategory)
 
   Settings.RegisterAddOnCategory(mainCategory)
 
   MBLib._optionsCategory = mainCategory
   MBLib._optionsScreenID = mainCategory:GetID()
+
+  -- Release Notes registers LAST so consumer-registered sub-pages (e.g.
+  -- canvas sub-categories added on PLAYER_LOGIN by the consumer addon)
+  -- sit above it in the Settings list. The Settings API renders children
+  -- in registration order with no built-in reorder primitive, so the only
+  -- reliable way to land Release Notes at the bottom is to defer until
+  -- after consumer PLAYER_LOGIN handlers have run.
+  local function registerReleaseNotes()
+    C_Timer.After(0, function() CreateReleaseNotesCategory(mainCategory) end)
+  end
+  if IsLoggedIn() then
+    registerReleaseNotes()
+  else
+    local f = CreateFrame("Frame")
+    f:RegisterEvent("PLAYER_LOGIN")
+    f:SetScript("OnEvent", function(frame)
+      registerReleaseNotes()
+      frame:UnregisterEvent("PLAYER_LOGIN")
+      frame:SetScript("OnEvent", nil)
+    end)
+  end
+
   return mainCategory
 end
 
