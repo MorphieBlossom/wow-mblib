@@ -264,7 +264,8 @@ local function CreateSettingsCategory(parent)
 
   if #visibleGroupOrder == 0 then return end
 
-  local category, layout = Settings.RegisterVerticalLayoutSubcategory(parent, "Display Settings")
+  local subcategoryName = MBLib.GetSettingsSubcategoryName and MBLib:GetSettingsSubcategoryName() or "Display Settings"
+  local category, layout = Settings.RegisterVerticalLayoutSubcategory(parent, subcategoryName)
 
   for _, group in ipairs(visibleGroupOrder) do
     layout:AddInitializer(Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name = group }))

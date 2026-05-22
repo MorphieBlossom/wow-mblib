@@ -33,7 +33,7 @@ local addonName, addon = ...
 addon.MBLib = addon.MBLib or {}
 local MBLib = addon.MBLib
 
-MBLib._version = "1.0.0"
+MBLib._version = "1.0.3"
 MBLib._addonName = addonName
 MBLib._addon = addon
 MBLib._slashTriggers = {}
@@ -79,6 +79,18 @@ function MBLib:GetPredecessor()
   return self._predecessor
 end
 
+-- Optional. Overrides the label of the settings subcategory built by
+-- OptionsScreen (the page that hosts all consumer-registered settings).
+-- Defaults to "Display Settings" when not set.
+function MBLib:SetSettingsSubcategoryName(name)
+  if type(name) ~= "string" or name == "" then return end
+  self._settingsSubcategoryName = name
+end
+
+function MBLib:GetSettingsSubcategoryName()
+  return self._settingsSubcategoryName or "Display Settings"
+end
+
 -- Bootstrap: open SavedVariables, init Settings, register slash handlers, build the
 -- options screen, schedule the update popup check.
 -- Call once from the consumer's ADDON_LOADED handler after registering data.
@@ -92,6 +104,9 @@ function MBLib:Init()
 
   if self.Settings and self.Settings.Init then
     self.Settings:Init()
+  end
+  if self.Fonts and self.Fonts.RegisterEmbeddedFonts then
+    pcall(self.Fonts.RegisterEmbeddedFonts, self.Fonts)
   end
   if self.Commands and self.Commands.RegisterSlashHandlers then
     self.Commands:RegisterSlashHandlers()

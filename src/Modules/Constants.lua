@@ -21,7 +21,7 @@ MBLib.ICON_LIST = "- "
 -- The current addon is filtered out at render time, so this list is shared
 -- verbatim across all consumers of MBLib.
 MBLib.OTHER_ADDONS = {
-  { name = "HoverName",    description = "Shows player and NPC names when you hover over them in the world." },
-  { name = "StatInfo",     description = "On-screen readout of primary, secondary, and tertiary stats with per-character priority highlighting." },
-  { name = "PurgeTheRude", description = "Detects flagged phrases in chat, sends warnings, and offers a Kick popup for group rules." },
+  { name = "HoverName", description = "Shows player and NPC names when you hover over them in the world." },
+  { name = "StatInfo",  description = "On-screen readout of primary, secondary, and tertiary stats with per-character priority highlighting." },
+  { name = "Meower",    description = "Watches chat for custom phrases and reacts with replies, emotes, invites, or kick prompts." },
 }
