@@ -19,7 +19,38 @@ Reference file paths so consumer maintainers can grep for usages: prefer ``Modul
 
 ---
 
-## 1.0.5 (unreleased)
+## 1.0.6
+
+### Added
+
+- ``CoreModules/Profiles.lua`` — new module ``addon.MBLib.Profiles`` for per-character profile support. **Opt-in**: the consumer must call ``MBLib.Profiles:Enable()`` *before* ``MBLib:Init`` runs. Consumers that don't opt in see no SavedVariables shape change at all (the ``Profiles`` / ``CharacterProfile`` / ``Account`` keys are never added to their SV file) and every Profiles API method returns ``nil`` / ``false`` cleanly. Layers a profile dimension over the consumer's account-wide SavedVariables file (no use of ``## SavedVariablesPerCharacter:`` — a single SV file holds account-scope + every profile, so one profile can be shared between several characters by simply binding their ``CharacterProfile`` entries to the same name).
+    - **SavedVariables shape** (within ``<AddonName>Data``):
+        - ``Profiles[name]`` — table of named profile buckets. MBLib treats the contents as opaque; the consumer owns the sub-table layout (e.g. ``Profiles["XXX-YYY"].Watchers``, ``.Stats``).
+        - ``CharacterProfile[charKey]`` — maps each character's ``"Name-Realm"`` key to the profile it's bound to.
+        - ``Account`` — sibling bucket for explicitly account-wide consumer data (account-scope watchers, account-scope movers, etc.).
+    - **Auto-seeding** at ``Init`` time: if the current character has no binding yet, MBLib assigns it a profile named after the character (e.g. ``"XXX-YYY"``); consumers can preempt this by calling ``MBLib.Profiles:SetDefaultName("Default")`` BEFORE ``MBLib:Init`` runs.
+    - **Public API**:
+        - ``Profiles:GetActiveName()`` / ``Profiles:GetActive()`` — name string / table for the local character's current profile.
+        - ``Profiles:GetAccount()`` — the account-scope bucket.
+        - ``Profiles:Activate(name)`` — bind THIS character to ``name``. Creates an empty profile by that name if one didn't exist. Fires ``OnActivated``.
+        - ``Profiles:All()`` / ``Profiles:Names()`` / ``Profiles:Exists(name)`` / ``Profiles:CharactersFor(name)``.
+        - ``Profiles:Create(name)`` / ``Profiles:Copy(src, dst)`` / ``Profiles:Delete(name)`` / ``Profiles:Rename(old, new)`` — refuses to delete the last profile or one that still has characters bound.
+        - ``Profiles:Export(name)`` — base64 envelope ``{kind="MBLibProfile", version=1, name=name, payload=<profile>}``.
+        - ``Profiles:WrapForExport(kind, payload, extra?)`` — same envelope but consumer-chosen ``kind`` (so per-watcher / per-row exports ride the same import path).
+        - ``Profiles:UnwrapImport(base64)`` — validates the envelope without touching SavedVariables. Use from a preview popup.
+        - ``Profiles:Import(base64, assignName?, overwrite?)`` — writes the imported profile to SavedVariables under ``assignName`` (defaults to the embedded ``name``).
+        - ``Profiles:OnActivated(fn)`` / ``Profiles:OnProfileChanged(fn)`` — consumer subscribes for active-profile and per-profile change events.
+        - ``Profiles:SetDefaultName(name)`` — override the per-character default name. Must run before ``MBLib:Init``.
+    - **Load order**: ``Profiles:Init`` is called from ``MBLib:Init`` *before* ``Settings:Init`` so consumer settings that depend on profile state see a ready profile table when their definition registers.
+    - **No third-party serializer required** — MBLib ships a tiny built-in serializer + base64 codec dedicated to this. Consumers don't need to vendor AceSerializer / LibCompress / LibDeflate to use Profiles.
+
+### Changed
+
+- ``CoreModules/OptionsScreen.lua`` — the "Other Addons by MorphieBlossom" list now re-evaluates each peer addon's loaded state at ``PLAYER_LOGIN`` rather than only at panel-build time. Panel build happens from the consumer's ``ADDON_LOADED``, which is fired before peer addons that come later in the alphabetical load order have run their own ``ADDON_LOADED`` — so prior to this fix, an alphabetically-later peer (HoverName seeing Meower, for example) would render with the missing-addon cross even when it loaded a moment later. Each row's status icon, tooltip, and click handler are now wrapped in an ``ApplyLoadedState`` closure that runs once inline plus once again on ``PLAYER_LOGIN``. Consumers don't need to do anything.
+
+---
+
+## 1.0.5
 
 ### Breaking
 
