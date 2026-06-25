@@ -19,6 +19,14 @@ Reference file paths so consumer maintainers can grep for usages: prefer ``Modul
 
 ---
 
+## 1.0.7
+
+### Added
+
+- ``CoreModules/Utils.lua`` — ``addon.MBLib.Utils:GetUnitStatusFlags(unit)``. Returns the AFK / DND / PvP status flags for ``unit`` (defaults to ``"player"``) as three booleans, in that order (``isAFK, isDND, isPVP``). Each underlying ``UnitIsAFK`` / ``UnitIsDND`` / ``UnitIsPVP`` call is guarded against a missing API and against secret values, so callers always get a plain boolean. Extracted so consumers don't re-implement the same flag reads (Meower's player-state watcher filter consumes it; HoverName's ``UnitInfo`` status text can adopt it).
+
+---
+
 ## 1.0.6
 
 ### Added
